@@ -69,7 +69,10 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
       }
     }
 
-    if (group.name !== "Wayland Protocols" && (groupOpenIssues > 0 || groupMergedMRs > 0)) {
+    if (
+      group.name !== "Wayland Protocols" &&
+      (groupOpenIssues > 0 || groupMergedMRs > 0)
+    ) {
       compositorHighlights.push({
         name: group.name,
         openIssues: groupOpenIssues,
@@ -78,7 +81,9 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
     }
   }
 
-  compositorHighlights.sort((a, b) => (b.openIssues + b.mergedMRs) - (a.openIssues + a.mergedMRs));
+  compositorHighlights.sort(
+    (a, b) => b.openIssues + b.mergedMRs - (a.openIssues + a.mergedMRs)
+  );
 
   return {
     protocolStatus,
@@ -92,6 +97,11 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
   };
 }
 
+function blockBar(ratio: number, width: number = 20): string {
+  const filled = Math.round((ratio / 100) * width);
+  return "█".repeat(filled) + "░".repeat(width - filled);
+}
+
 function SummaryCard({
   title,
   summary,
@@ -99,11 +109,11 @@ function SummaryCard({
   title: string;
   summary: FeatureSummary;
 }) {
-  const protocolBadge = {
-    stable: { label: "Stable", cls: "text-green-400" },
-    staging: { label: "Staging", cls: "text-yellow-400" },
-    not_found: { label: "Not Found", cls: "text-red-400" },
-    unknown: { label: "Unknown", cls: "text-white/40" },
+  const protocolTag = {
+    stable: { label: "STABLE", cls: "text-[var(--green)]" },
+    staging: { label: "STAGING", cls: "text-[var(--amber)]" },
+    not_found: { label: "NOT FOUND", cls: "text-[var(--red)]" },
+    unknown: { label: "UNKNOWN", cls: "text-[var(--dim)]" },
   }[summary.protocolStatus];
 
   const totalIssues = summary.totalOpenIssues + summary.totalClosedIssues;
@@ -118,128 +128,112 @@ function SummaryCard({
       : 0;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
-      <h2 className="text-lg font-semibold">{title}</h2>
-
-      <div className="mt-4 space-y-3 text-sm">
-        {/* Protocol */}
-        <div className="flex items-center justify-between">
-          <span className="text-white/50">Protocol</span>
+    <div className="border border-[var(--border)] bg-[var(--surface)]">
+      <div className="border-b border-[var(--border)] px-4 py-2 flex items-center gap-2">
+        <span className="text-[var(--green)]">╔══</span>
+        <span className="text-[var(--bright)] font-bold text-sm uppercase tracking-widest">
+          {title}
+        </span>
+        <span className="text-[var(--green)]">══╗</span>
+      </div>
+      <div className="px-4 py-3 space-y-2 text-xs">
+        <div className="flex justify-between">
+          <span className="text-[var(--dim)]">protocol:</span>
           <span>
-            <span className="font-mono text-xs text-white/70">
-              {summary.protocolName}
-            </span>{" "}
-            <span className={`text-xs font-medium ${protocolBadge.cls}`}>
-              {protocolBadge.label}
-            </span>
+            <span className="text-[var(--fg)]">{summary.protocolName}</span>{" "}
+            <span className={protocolTag.cls}>[{protocolTag.label}]</span>
           </span>
         </div>
 
-        {/* Issues */}
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-white/50">Tracked issues</span>
-            <span className="text-xs">
-              <span className="text-green-400">
-                {summary.totalOpenIssues} open
-              </span>
-              <span className="text-white/20"> · </span>
-              <span className="text-white/40">
-                {summary.totalClosedIssues} closed
-              </span>
+        <div className="flex justify-between">
+          <span className="text-[var(--dim)]">issues:</span>
+          <span>
+            <span className="text-[var(--green)]">
+              {summary.totalOpenIssues} open
             </span>
-          </div>
-          {totalIssues > 0 && (
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-              <div
-                className="h-full rounded-full bg-green-400/40"
-                style={{ width: `${closedRatio}%` }}
-              />
-            </div>
-          )}
-          {totalIssues > 0 && (
-            <p className="mt-1 text-[10px] text-white/25">
-              {closedRatio}% of tracked issues resolved
-            </p>
-          )}
+            <span className="text-[var(--dim)]"> | </span>
+            <span className="text-[var(--fg)]">
+              {summary.totalClosedIssues} closed
+            </span>
+          </span>
         </div>
+        {totalIssues > 0 && (
+          <div className="flex justify-between items-center">
+            <span className="text-[var(--green-dim)]">
+              {blockBar(closedRatio, 16)}
+            </span>
+            <span className="text-[var(--dim)]">{closedRatio}% resolved</span>
+          </div>
+        )}
 
-        {/* MRs */}
         {totalMRs > 0 && (
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-white/50">Merge requests</span>
-              <span className="text-xs">
-                <span className="text-green-400">
+          <>
+            <div className="flex justify-between">
+              <span className="text-[var(--dim)]">merge_req:</span>
+              <span>
+                <span className="text-[var(--green)]">
                   {summary.totalOpenMRs} open
                 </span>
-                <span className="text-white/20"> · </span>
-                <span className="text-purple-400">
+                <span className="text-[var(--dim)]"> | </span>
+                <span className="text-[var(--magenta)]">
                   {summary.totalMergedMRs} merged
                 </span>
               </span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-              <div
-                className="h-full rounded-full bg-purple-400/40"
-                style={{ width: `${mergedRatio}%` }}
-              />
+            <div className="flex justify-between items-center">
+              <span className="text-[var(--magenta)]">
+                {blockBar(mergedRatio, 16)}
+              </span>
+              <span className="text-[var(--dim)]">{mergedRatio}% merged</span>
             </div>
-            <p className="mt-1 text-[10px] text-white/25">
-              {mergedRatio}% of tracked MRs merged
-            </p>
-          </div>
+          </>
         )}
 
-        {/* Most recent activity */}
         {summary.mostRecentActivity && (
-          <div className="flex items-center justify-between">
-            <span className="text-white/50">Latest activity</span>
-            <span className="text-xs text-white/40">
+          <div className="flex justify-between">
+            <span className="text-[var(--dim)]">last_activity:</span>
+            <span className="text-[var(--fg)]">
               {timeAgo(summary.mostRecentActivity)}
             </span>
           </div>
         )}
-      </div>
 
-      {/* Per-compositor breakdown */}
-      {summary.compositorHighlights.length > 0 && (
-        <div className="mt-4 border-t border-white/5 pt-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/25">
-            Activity by project
-          </p>
-          <div className="space-y-1.5">
+        {summary.compositorHighlights.length > 0 && (
+          <div className="border-t border-[var(--border)] pt-2 mt-2">
+            <p className="text-[var(--dim)] mb-1">
+              # activity by project
+            </p>
             {summary.compositorHighlights.map((c) => (
               <div
                 key={c.name}
-                className="flex items-center justify-between text-xs"
+                className="flex justify-between text-[11px]"
               >
-                <span className="text-white/60">{c.name}</span>
-                <span className="text-white/30">
+                <span className="text-[var(--fg)]">{c.name}</span>
+                <span>
                   {c.openIssues > 0 && (
-                    <span className="text-green-400/70">
-                      {c.openIssues} open
+                    <span className="text-[var(--green-dim)]">
+                      {c.openIssues}o
                     </span>
                   )}
                   {c.openIssues > 0 && c.mergedMRs > 0 && (
-                    <span className="text-white/15"> · </span>
+                    <span className="text-[var(--dim)]">/</span>
                   )}
                   {c.mergedMRs > 0 && (
-                    <span className="text-purple-400/70">
-                      {c.mergedMRs} merged
+                    <span className="text-[var(--magenta)]">
+                      {c.mergedMRs}m
                     </span>
                   )}
                 </span>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── Existing helpers ────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -253,45 +247,32 @@ function timeAgo(dateStr: string): string {
 }
 
 function ProtocolCard({ item }: { item: ProtocolResult }) {
-  const badge = {
-    stable: {
-      label: "Stable",
-      cls: "bg-green-400/10 border-green-400/30 text-green-400",
-    },
-    staging: {
-      label: "Staging",
-      cls: "bg-yellow-400/10 border-yellow-400/30 text-yellow-400",
-    },
-    not_found: {
-      label: "Not Found",
-      cls: "bg-red-400/10 border-red-400/30 text-red-400",
-    },
+  const tag = {
+    stable: { label: "STABLE", cls: "text-[var(--green)]" },
+    staging: { label: "STAGING", cls: "text-[var(--amber)]" },
+    not_found: { label: "NOT FOUND", cls: "text-[var(--red)]" },
   }[item.location];
 
   return (
-    <div className="px-6 py-4">
+    <div className="px-4 py-3">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-sm text-white/90">{item.name}</span>
-        <span
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${badge.cls}`}
-        >
-          {badge.label}
-        </span>
+        <span className="text-[var(--bright)] text-xs">{item.name}</span>
+        <span className={`text-xs font-bold ${tag.cls}`}>[{tag.label}]</span>
       </div>
-      <p className="mt-1.5 text-xs text-white/40">
+      <p className="mt-1 text-[11px] text-[var(--dim)]">
         {item.location === "stable"
-          ? "Protocol is finalized and in the stable set."
+          ? "# finalized in the stable protocol set"
           : item.location === "staging"
-            ? "Protocol is in staging — functional but may still change."
-            : "Protocol not yet present in wayland-protocols."}
+            ? "# in staging -- functional but may still change"
+            : "# not yet present in wayland-protocols"}
       </p>
       <a
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300"
+        className="mt-1 inline-block text-[11px] text-[var(--cyan)] hover:underline"
       >
-        View repository ↗
+        $ open repo
       </a>
     </div>
   );
@@ -301,18 +282,12 @@ function StateBadge({ state }: { state: string }) {
   const isOpen = state === "opened" || state === "open";
   const isMerged = state === "merged";
   const cls = isOpen
-    ? "bg-green-400/10 text-green-400"
+    ? "text-[var(--green)]"
     : isMerged
-      ? "bg-purple-400/10 text-purple-400"
-      : "bg-white/5 text-white/40";
-  const label = isOpen ? "open" : isMerged ? "merged" : "closed";
-  return (
-    <span
-      className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
-    >
-      {label}
-    </span>
-  );
+      ? "text-[var(--magenta)]"
+      : "text-[var(--dim)]";
+  const label = isOpen ? "OPEN" : isMerged ? "MRGD" : "CLSD";
+  return <span className={`text-[10px] font-bold shrink-0 ${cls}`}>[{label}]</span>;
 }
 
 function RecentList({
@@ -322,19 +297,21 @@ function RecentList({
 }) {
   if (items.length === 0) return null;
   return (
-    <ul className="mt-3 space-y-1.5">
+    <ul className="mt-2 space-y-1">
       {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2 text-xs">
+        <li key={i} className="flex items-start gap-2 text-[11px]">
           <StateBadge state={item.state} />
           <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="min-w-0 flex-1 truncate text-white/60 hover:text-white/90"
+            className="min-w-0 flex-1 truncate text-[var(--fg)] hover:text-[var(--bright)] hover:underline"
           >
             {item.title}
           </a>
-          <span className="shrink-0 text-white/25">{timeAgo(item.updated)}</span>
+          <span className="shrink-0 text-[var(--dim)]">
+            {timeAgo(item.updated)}
+          </span>
         </li>
       ))}
     </ul>
@@ -343,17 +320,19 @@ function RecentList({
 
 function IssuesCard({ item }: { item: IssuesResult }) {
   return (
-    <div className="px-6 py-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-mono text-sm text-white/90">{item.name}</span>
-        <div className="flex gap-3 text-xs">
-          <span className="text-green-400">{item.openCount} open</span>
-          <span className="text-white/20">·</span>
-          <span className="text-white/40">{item.closedCount} closed</span>
+    <div className="px-4 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-[var(--bright)] text-xs">{item.name}</span>
+        <div className="flex gap-2 text-[11px]">
+          <span className="text-[var(--green)]">{item.openCount} open</span>
+          <span className="text-[var(--dim)]">|</span>
+          <span className="text-[var(--dim)]">{item.closedCount} closed</span>
           {item.totalCount > item.openCount + item.closedCount && (
             <>
-              <span className="text-white/20">·</span>
-              <span className="text-white/30">{item.totalCount} total</span>
+              <span className="text-[var(--dim)]">|</span>
+              <span className="text-[var(--dim)]">
+                {item.totalCount} total
+              </span>
             </>
           )}
         </div>
@@ -363,9 +342,9 @@ function IssuesCard({ item }: { item: IssuesResult }) {
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-block text-xs text-blue-400 hover:text-blue-300"
+        className="mt-2 inline-block text-[11px] text-[var(--cyan)] hover:underline"
       >
-        View all issues ↗
+        $ view all issues
       </a>
     </div>
   );
@@ -373,15 +352,17 @@ function IssuesCard({ item }: { item: IssuesResult }) {
 
 function MRCard({ item }: { item: MergeRequestsResult }) {
   return (
-    <div className="px-6 py-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-mono text-sm text-white/90">{item.name}</span>
-        <div className="flex gap-3 text-xs">
-          <span className="text-green-400">{item.openCount} open</span>
-          <span className="text-white/20">·</span>
-          <span className="text-purple-400">{item.mergedCount} merged</span>
-          <span className="text-white/20">·</span>
-          <span className="text-white/40">{item.closedCount} closed</span>
+    <div className="px-4 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-[var(--bright)] text-xs">{item.name}</span>
+        <div className="flex gap-2 text-[11px]">
+          <span className="text-[var(--green)]">{item.openCount} open</span>
+          <span className="text-[var(--dim)]">|</span>
+          <span className="text-[var(--magenta)]">
+            {item.mergedCount} merged
+          </span>
+          <span className="text-[var(--dim)]">|</span>
+          <span className="text-[var(--dim)]">{item.closedCount} closed</span>
         </div>
       </div>
       <RecentList items={item.recent} />
@@ -389,9 +370,9 @@ function MRCard({ item }: { item: MergeRequestsResult }) {
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-block text-xs text-blue-400 hover:text-blue-300"
+        className="mt-2 inline-block text-[11px] text-[var(--cyan)] hover:underline"
       >
-        View all merge requests ↗
+        $ view all merge requests
       </a>
     </div>
   );
@@ -399,14 +380,14 @@ function MRCard({ item }: { item: MergeRequestsResult }) {
 
 function ErrorCard({ item }: { item: FetchError }) {
   return (
-    <div className="px-6 py-4">
+    <div className="px-4 py-3">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-sm text-white/90">{item.name}</span>
-        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/40">
-          Unable to fetch
+        <span className="text-[var(--bright)] text-xs">{item.name}</span>
+        <span className="text-[11px] text-[var(--red)] font-bold">
+          [ERROR]
         </span>
       </div>
-      <p className="mt-1 text-xs text-white/30">{item.message}</p>
+      <p className="mt-1 text-[11px] text-[var(--dim)]"># {item.message}</p>
     </div>
   );
 }
@@ -426,14 +407,15 @@ function ItemCard({ item }: { item: ItemResult }) {
 
 function GroupCard({ group }: { group: GroupData }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
-      <div className="border-b border-white/10 px-6 py-4">
-        <h3 className="text-lg font-semibold">
-          <span className="mr-2">{group.icon}</span>
-          {group.name}
+    <div className="border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+      <div className="border-b border-[var(--border)] px-4 py-2">
+        <h3 className="text-xs font-bold text-[var(--bright)]">
+          <span className="text-[var(--green-dim)]">┌─</span>{" "}
+          {group.icon} {group.name}{" "}
+          <span className="text-[var(--green-dim)]">─┐</span>
         </h3>
       </div>
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-[var(--border)]">
         {group.items.map((item, i) => (
           <ItemCard key={i} item={item} />
         ))}
@@ -451,42 +433,42 @@ export default function TrackerView({ data }: { data: TrackerData }) {
 
   return (
     <>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <SummaryCard title="HDR" summary={hdrSummary} />
         <SummaryCard title="VRR" summary={vrrSummary} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-1 mb-6">
         <button
           onClick={() => setTab("hdr")}
-          className={`rounded-lg px-5 py-2.5 text-sm font-medium transition-colors ${
+          className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
             tab === "hdr"
-              ? "bg-white/10 text-white"
-              : "text-white/40 hover:text-white/70"
+              ? "border-[var(--green)] text-[var(--green)] bg-[var(--green)]/5"
+              : "border-[var(--border)] text-[var(--dim)] hover:text-[var(--fg)] hover:border-[var(--dim)]"
           }`}
         >
-          HDR
+          [ HDR ]
         </button>
         <button
           onClick={() => setTab("vrr")}
-          className={`rounded-lg px-5 py-2.5 text-sm font-medium transition-colors ${
+          className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider border transition-colors ${
             tab === "vrr"
-              ? "bg-white/10 text-white"
-              : "text-white/40 hover:text-white/70"
+              ? "border-[var(--green)] text-[var(--green)] bg-[var(--green)]/5"
+              : "border-[var(--border)] text-[var(--dim)] hover:text-[var(--fg)] hover:border-[var(--dim)]"
           }`}
         >
-          VRR
+          [ VRR ]
         </button>
       </div>
 
-      <div className="mt-6 space-y-6">
+      <div className="space-y-4">
         {groups.map((group) => (
           <GroupCard key={group.name} group={group} />
         ))}
       </div>
 
-      <p className="mt-8 text-center text-xs text-white/20">
-        Data fetched from live upstream APIs · Last refreshed{" "}
+      <p className="mt-6 text-[11px] text-[var(--dim)]">
+        # fetched from live upstream APIs | last refresh:{" "}
         {data.fetchedAt.slice(0, 19).replace("T", " ")} UTC
       </p>
     </>
