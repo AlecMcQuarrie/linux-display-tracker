@@ -14,6 +14,249 @@ import type {
 
 type Tab = "hdr" | "vrr";
 
+// ─── Summary helpers ─────────────────────────────────────────
+
+interface FeatureSummary {
+  protocolStatus: "stable" | "staging" | "not_found" | "unknown";
+  protocolName: string;
+  totalOpenIssues: number;
+  totalClosedIssues: number;
+  totalOpenMRs: number;
+  totalMergedMRs: number;
+  latestRelease: { tag: string; date: string } | null;
+  mostRecentActivity: string | null;
+  compositorHighlights: {
+    name: string;
+    openIssues: number;
+    mergedMRs: number;
+  }[];
+}
+
+function computeSummary(groups: GroupData[]): FeatureSummary {
+  let protocolStatus: FeatureSummary["protocolStatus"] = "unknown";
+  let protocolName = "";
+  let totalOpenIssues = 0;
+  let totalClosedIssues = 0;
+  let totalOpenMRs = 0;
+  let totalMergedMRs = 0;
+  let latestRelease: FeatureSummary["latestRelease"] = null;
+  let mostRecentActivity: string | null = null;
+  const compositorHighlights: FeatureSummary["compositorHighlights"] = [];
+
+  for (const group of groups) {
+    let groupOpenIssues = 0;
+    let groupMergedMRs = 0;
+
+    for (const item of group.items) {
+      if (item.kind === "protocol") {
+        protocolStatus = item.location;
+        protocolName = item.name;
+      } else if (item.kind === "issues") {
+        totalOpenIssues += item.openCount;
+        totalClosedIssues += item.closedCount;
+        groupOpenIssues += item.openCount;
+        for (const r of item.recent) {
+          if (!mostRecentActivity || r.updated > mostRecentActivity) {
+            mostRecentActivity = r.updated;
+          }
+        }
+      } else if (item.kind === "merge_requests") {
+        totalOpenMRs += item.openCount;
+        totalMergedMRs += item.mergedCount;
+        groupMergedMRs += item.mergedCount;
+        for (const r of item.recent) {
+          if (!mostRecentActivity || r.updated > mostRecentActivity) {
+            mostRecentActivity = r.updated;
+          }
+        }
+      } else if (item.kind === "release") {
+        latestRelease = { tag: item.tag, date: item.date };
+      }
+    }
+
+    if (group.name !== "Wayland Protocols" && (groupOpenIssues > 0 || groupMergedMRs > 0)) {
+      compositorHighlights.push({
+        name: group.name,
+        openIssues: groupOpenIssues,
+        mergedMRs: groupMergedMRs,
+      });
+    }
+  }
+
+  compositorHighlights.sort((a, b) => (b.openIssues + b.mergedMRs) - (a.openIssues + a.mergedMRs));
+
+  return {
+    protocolStatus,
+    protocolName,
+    totalOpenIssues,
+    totalClosedIssues,
+    totalOpenMRs,
+    totalMergedMRs,
+    latestRelease,
+    mostRecentActivity,
+    compositorHighlights,
+  };
+}
+
+function SummaryCard({
+  title,
+  summary,
+}: {
+  title: string;
+  summary: FeatureSummary;
+}) {
+  const protocolBadge = {
+    stable: { label: "Stable", cls: "text-green-400" },
+    staging: { label: "Staging", cls: "text-yellow-400" },
+    not_found: { label: "Not Found", cls: "text-red-400" },
+    unknown: { label: "Unknown", cls: "text-white/40" },
+  }[summary.protocolStatus];
+
+  const totalIssues = summary.totalOpenIssues + summary.totalClosedIssues;
+  const totalMRs = summary.totalOpenMRs + summary.totalMergedMRs;
+  const closedRatio =
+    totalIssues > 0
+      ? Math.round((summary.totalClosedIssues / totalIssues) * 100)
+      : 0;
+  const mergedRatio =
+    totalMRs > 0
+      ? Math.round((summary.totalMergedMRs / totalMRs) * 100)
+      : 0;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+      <h2 className="text-lg font-semibold">{title}</h2>
+
+      <div className="mt-4 space-y-3 text-sm">
+        {/* Protocol */}
+        <div className="flex items-center justify-between">
+          <span className="text-white/50">Protocol</span>
+          <span>
+            <span className="font-mono text-xs text-white/70">
+              {summary.protocolName}
+            </span>{" "}
+            <span className={`text-xs font-medium ${protocolBadge.cls}`}>
+              {protocolBadge.label}
+            </span>
+          </span>
+        </div>
+
+        {/* Issues */}
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/50">Tracked issues</span>
+            <span className="text-xs">
+              <span className="text-green-400">
+                {summary.totalOpenIssues} open
+              </span>
+              <span className="text-white/20"> · </span>
+              <span className="text-white/40">
+                {summary.totalClosedIssues} closed
+              </span>
+            </span>
+          </div>
+          {totalIssues > 0 && (
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div
+                className="h-full rounded-full bg-green-400/40"
+                style={{ width: `${closedRatio}%` }}
+              />
+            </div>
+          )}
+          {totalIssues > 0 && (
+            <p className="mt-1 text-[10px] text-white/25">
+              {closedRatio}% of tracked issues resolved
+            </p>
+          )}
+        </div>
+
+        {/* MRs */}
+        {totalMRs > 0 && (
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/50">Merge requests</span>
+              <span className="text-xs">
+                <span className="text-green-400">
+                  {summary.totalOpenMRs} open
+                </span>
+                <span className="text-white/20"> · </span>
+                <span className="text-purple-400">
+                  {summary.totalMergedMRs} merged
+                </span>
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div
+                className="h-full rounded-full bg-purple-400/40"
+                style={{ width: `${mergedRatio}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-white/25">
+              {mergedRatio}% of tracked MRs merged
+            </p>
+          </div>
+        )}
+
+        {/* Gamescope release */}
+        {summary.latestRelease && (
+          <div className="flex items-center justify-between">
+            <span className="text-white/50">Gamescope release</span>
+            <span className="font-mono text-xs text-blue-400">
+              {summary.latestRelease.tag}
+            </span>
+          </div>
+        )}
+
+        {/* Most recent activity */}
+        {summary.mostRecentActivity && (
+          <div className="flex items-center justify-between">
+            <span className="text-white/50">Latest activity</span>
+            <span className="text-xs text-white/40">
+              {timeAgo(summary.mostRecentActivity)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Per-compositor breakdown */}
+      {summary.compositorHighlights.length > 0 && (
+        <div className="mt-4 border-t border-white/5 pt-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-white/25">
+            Activity by project
+          </p>
+          <div className="space-y-1.5">
+            {summary.compositorHighlights.map((c) => (
+              <div
+                key={c.name}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className="text-white/60">{c.name}</span>
+                <span className="text-white/30">
+                  {c.openIssues > 0 && (
+                    <span className="text-green-400/70">
+                      {c.openIssues} open
+                    </span>
+                  )}
+                  {c.openIssues > 0 && c.mergedMRs > 0 && (
+                    <span className="text-white/15"> · </span>
+                  )}
+                  {c.mergedMRs > 0 && (
+                    <span className="text-purple-400/70">
+                      {c.mergedMRs} merged
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Existing helpers ────────────────────────────────────────
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
@@ -245,8 +488,16 @@ export default function TrackerView({ data }: { data: TrackerData }) {
   const [tab, setTab] = useState<Tab>("hdr");
   const groups = tab === "hdr" ? data.hdr : data.vrr;
 
+  const hdrSummary = computeSummary(data.hdr);
+  const vrrSummary = computeSummary(data.vrr);
+
   return (
     <>
+      <div className="mb-8 grid gap-4 sm:grid-cols-2">
+        <SummaryCard title="HDR" summary={hdrSummary} />
+        <SummaryCard title="VRR" summary={vrrSummary} />
+      </div>
+
       <div className="flex gap-2">
         <button
           onClick={() => setTab("hdr")}
