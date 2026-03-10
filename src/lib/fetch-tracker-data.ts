@@ -28,14 +28,6 @@ export interface MergeRequestsResult {
   url: string;
 }
 
-export interface ReleaseResult {
-  kind: "release";
-  name: string;
-  tag: string;
-  date: string;
-  url: string;
-}
-
 export interface FetchError {
   kind: "error";
   name: string;
@@ -46,7 +38,6 @@ export type ItemResult =
   | ProtocolResult
   | IssuesResult
   | MergeRequestsResult
-  | ReleaseResult
   | FetchError;
 
 export interface GroupData {
@@ -218,35 +209,6 @@ async function fetchGitHubIssues(
   }
 }
 
-async function fetchGitHubRelease(
-  repo: string,
-  name: string,
-  humanUrl: string
-): Promise<ReleaseResult | FetchError> {
-  try {
-    const res = await fetch(
-      `https://api.github.com/repos/${repo}/releases/latest`,
-      {
-        next: { revalidate: REVALIDATE },
-        headers: {
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "linux-display-tracker",
-        },
-      }
-    );
-    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-    const data = await res.json();
-    return {
-      kind: "release",
-      name,
-      tag: data.tag_name,
-      date: data.published_at,
-      url: data.html_url,
-    };
-  } catch (e) {
-    return { kind: "error", name, message: e instanceof Error ? e.message : String(e) };
-  }
-}
 
 // ─── Main ────────────────────────────────────────────────────
 
@@ -261,10 +223,10 @@ export async function fetchTrackerData(): Promise<TrackerData> {
     checkProtocol(FD, WP, "color-management-v1",
       "stable/color-management", "staging/color-management",
       "https://gitlab.freedesktop.org/wayland/wayland-protocols"),
-    // 1: KWin HDR issues
-    fetchGitLabIssues(KDE, "plasma/kwin", "HDR", "Issues",
-      "https://invent.kde.org/plasma/kwin/-/issues?search=HDR"),
-    // 2: KWin HDR MRs
+    // 1: KWin HDR issues (KDE uses "color management" terminology for HDR work)
+    fetchGitLabIssues(KDE, "plasma/kwin", "color management", "Issues",
+      "https://invent.kde.org/plasma/kwin/-/issues?search=color+management"),
+    // 2: KWin HDR MRs (search HDR + colormanagement to catch both naming conventions)
     fetchGitLabMRs(KDE, "plasma/kwin", "HDR", "Merge Requests",
       "https://invent.kde.org/plasma/kwin/-/merge_requests?search=HDR"),
     // 3: Mutter HDR issues
@@ -276,40 +238,37 @@ export async function fetchTrackerData(): Promise<TrackerData> {
     // 5: Gamescope HDR
     fetchGitHubIssues("ValveSoftware/gamescope", "HDR", "HDR Issues",
       "https://github.com/ValveSoftware/gamescope/issues?q=HDR"),
-    // 6: Gamescope release
-    fetchGitHubRelease("ValveSoftware/gamescope", "Latest Release",
-      "https://github.com/ValveSoftware/gamescope/releases"),
-    // 7: wlroots HDR
-    fetchGitHubIssues("swaywm/wlroots", "color management HDR", "Color Management Issues",
-      "https://github.com/swaywm/wlroots/issues?q=color+management+HDR"),
-    // 8: Mesa HDR
+    // 6: wlroots HDR (search "color-management" — wlroots uses this term)
+    fetchGitHubIssues("swaywm/wlroots", "color-management", "Color Management Issues",
+      "https://github.com/swaywm/wlroots/issues?q=color-management"),
+    // 7: Mesa HDR
     fetchGitLabIssues(FD, "mesa/mesa", "HDR", "HDR Issues",
       "https://gitlab.freedesktop.org/mesa/mesa/-/issues?search=HDR"),
-    // 9: VRR protocol
+    // 8: VRR protocol
     checkProtocol(FD, WP, "tearing-control-v1",
       "stable/tearing-control", "staging/tearing-control",
       "https://gitlab.freedesktop.org/wayland/wayland-protocols"),
-    // 10: KWin VRR issues
+    // 9: KWin VRR issues
     fetchGitLabIssues(KDE, "plasma/kwin", "VRR", "Issues",
       "https://invent.kde.org/plasma/kwin/-/issues?search=VRR"),
-    // 11: KWin VRR MRs
+    // 10: KWin VRR MRs
     fetchGitLabMRs(KDE, "plasma/kwin", "VRR", "Merge Requests",
       "https://invent.kde.org/plasma/kwin/-/merge_requests?search=VRR"),
-    // 12: Mutter VRR issues
+    // 11: Mutter VRR issues
     fetchGitLabIssues(GNOME, "GNOME/mutter", "VRR", "Issues",
       "https://gitlab.gnome.org/GNOME/mutter/-/issues?search=VRR"),
-    // 13: Mutter VRR MRs
+    // 12: Mutter VRR MRs
     fetchGitLabMRs(GNOME, "GNOME/mutter", "VRR", "Merge Requests",
       "https://gitlab.gnome.org/GNOME/mutter/-/merge_requests?search=VRR"),
-    // 14: Gamescope VRR
+    // 13: Gamescope VRR
     fetchGitHubIssues("ValveSoftware/gamescope", "VRR", "VRR Issues",
       "https://github.com/ValveSoftware/gamescope/issues?q=VRR"),
-    // 15: Sway VRR
-    fetchGitHubIssues("swaywm/sway", "VRR adaptive_sync", "VRR Issues",
-      "https://github.com/swaywm/sway/issues?q=VRR+adaptive_sync"),
-    // 16: wlroots VRR
-    fetchGitHubIssues("swaywm/wlroots", "VRR adaptive_sync", "VRR Issues",
-      "https://github.com/swaywm/wlroots/issues?q=VRR+adaptive_sync"),
+    // 14: Sway VRR (sway uses "adaptive_sync" config name)
+    fetchGitHubIssues("swaywm/sway", "adaptive_sync", "VRR Issues",
+      "https://github.com/swaywm/sway/issues?q=adaptive_sync"),
+    // 15: wlroots VRR
+    fetchGitHubIssues("swaywm/wlroots", "VRR", "VRR Issues",
+      "https://github.com/swaywm/wlroots/issues?q=VRR"),
   ]);
 
   const r = (i: number): ItemResult => {
@@ -323,16 +282,16 @@ export async function fetchTrackerData(): Promise<TrackerData> {
       { name: "Wayland Protocols", icon: "📡", items: [r(0)] },
       { name: "KDE Plasma / KWin", icon: "🖥️", items: [r(1), r(2)] },
       { name: "GNOME / Mutter", icon: "👣", items: [r(3), r(4)] },
-      { name: "Gamescope (Valve)", icon: "🎮", items: [r(5), r(6)] },
-      { name: "wlroots / Sway", icon: "🌿", items: [r(7)] },
-      { name: "Mesa (AMD/Intel)", icon: "🔴", items: [r(8)] },
+      { name: "Gamescope (Valve)", icon: "🎮", items: [r(5)] },
+      { name: "wlroots / Sway", icon: "🌿", items: [r(6)] },
+      { name: "Mesa (AMD/Intel)", icon: "🔴", items: [r(7)] },
     ],
     vrr: [
-      { name: "Wayland Protocols", icon: "📡", items: [r(9)] },
-      { name: "KDE Plasma / KWin", icon: "🖥️", items: [r(10), r(11)] },
-      { name: "GNOME / Mutter", icon: "👣", items: [r(12), r(13)] },
-      { name: "Gamescope (Valve)", icon: "🎮", items: [r(14)] },
-      { name: "wlroots / Sway", icon: "🌿", items: [r(15), r(16)] },
+      { name: "Wayland Protocols", icon: "📡", items: [r(8)] },
+      { name: "KDE Plasma / KWin", icon: "🖥️", items: [r(9), r(10)] },
+      { name: "GNOME / Mutter", icon: "👣", items: [r(11), r(12)] },
+      { name: "Gamescope (Valve)", icon: "🎮", items: [r(13)] },
+      { name: "wlroots / Sway", icon: "🌿", items: [r(14), r(15)] },
     ],
     fetchedAt: new Date().toISOString(),
   };

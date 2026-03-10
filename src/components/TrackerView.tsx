@@ -8,7 +8,6 @@ import type {
   ProtocolResult,
   IssuesResult,
   MergeRequestsResult,
-  ReleaseResult,
   FetchError,
 } from "@/lib/fetch-tracker-data";
 
@@ -23,7 +22,6 @@ interface FeatureSummary {
   totalClosedIssues: number;
   totalOpenMRs: number;
   totalMergedMRs: number;
-  latestRelease: { tag: string; date: string } | null;
   mostRecentActivity: string | null;
   compositorHighlights: {
     name: string;
@@ -39,7 +37,6 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
   let totalClosedIssues = 0;
   let totalOpenMRs = 0;
   let totalMergedMRs = 0;
-  let latestRelease: FeatureSummary["latestRelease"] = null;
   let mostRecentActivity: string | null = null;
   const compositorHighlights: FeatureSummary["compositorHighlights"] = [];
 
@@ -69,8 +66,6 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
             mostRecentActivity = r.updated;
           }
         }
-      } else if (item.kind === "release") {
-        latestRelease = { tag: item.tag, date: item.date };
       }
     }
 
@@ -92,7 +87,6 @@ function computeSummary(groups: GroupData[]): FeatureSummary {
     totalClosedIssues,
     totalOpenMRs,
     totalMergedMRs,
-    latestRelease,
     mostRecentActivity,
     compositorHighlights,
   };
@@ -194,16 +188,6 @@ function SummaryCard({
             <p className="mt-1 text-[10px] text-white/25">
               {mergedRatio}% of tracked MRs merged
             </p>
-          </div>
-        )}
-
-        {/* Gamescope release */}
-        {summary.latestRelease && (
-          <div className="flex items-center justify-between">
-            <span className="text-white/50">Gamescope release</span>
-            <span className="font-mono text-xs text-blue-400">
-              {summary.latestRelease.tag}
-            </span>
           </div>
         )}
 
@@ -413,30 +397,6 @@ function MRCard({ item }: { item: MergeRequestsResult }) {
   );
 }
 
-function ReleaseCard({ item }: { item: ReleaseResult }) {
-  return (
-    <div className="px-6 py-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-mono text-sm text-white/90">{item.name}</span>
-        <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs font-medium text-blue-400">
-          {item.tag}
-        </span>
-      </div>
-      <p className="mt-1.5 text-xs text-white/40">
-        Published {new Date(item.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-      </p>
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300"
-      >
-        View release ↗
-      </a>
-    </div>
-  );
-}
-
 function ErrorCard({ item }: { item: FetchError }) {
   return (
     <div className="px-6 py-4">
@@ -459,8 +419,6 @@ function ItemCard({ item }: { item: ItemResult }) {
       return <IssuesCard item={item} />;
     case "merge_requests":
       return <MRCard item={item} />;
-    case "release":
-      return <ReleaseCard item={item} />;
     case "error":
       return <ErrorCard item={item} />;
   }
